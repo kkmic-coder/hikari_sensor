@@ -1,0 +1,560 @@
+2024/05/10
+
+$sudo apt update
+$sudo apt upgrade
+
+1.IPアドレス固定化
+
+http://www.momobro.com/rasbro/tips-rp-nm-fixed-ip-address/
+Network Managerのコネクション「Wireed Connection 1」を	eth0 にする(一般論としては）
+→実際には、「有線接続１」がコネクション名だった
+
+$nwcli connection show
+NAME           UUID                                  TYPE      DEVICE 
+有線接続 1     368715e8-0574-388d-bcee-0f8aa6a487d6  ethernet  eth0   
+lo             ce2257b4-486b-48ca-ab06-14d48ee9d2db  loopback  lo     
+preconfigured  8b0dbed6-7a2c-4ad8-85bb-b3649854fedc  wifi      --    
+
+kkmic@sma-pi1:~ $ nmcli connection show '有線接続 1'
+connection.id:                          有線接続 1
+connection.uuid:                        368715e8-0574-388d-bcee-0f8aa6a487d6
+connection.stable-id:                   --
+connection.type:                        802-3-ethernet
+connection.interface-name:              eth0
+connection.autoconnect:                 はい
+connection.autoconnect-priority:        -999
+connection.autoconnect-retries:         -1 (default)
+connection.multi-connect:               0 (default)
+connection.auth-retries:                -1
+connection.timestamp:                   1715335998
+connection.read-only:                   いいえ
+connection.permissions:                 --
+connection.zone:                        --
+connection.master:                      --
+connection.slave-type:                  --
+connection.autoconnect-slaves:          -1 (default)
+connection.secondaries:                 --
+connection.gateway-ping-timeout:        0
+connection.metered:                     不明
+connection.lldp:                        default
+connection.mdns:                        -1 (default)
+connection.llmnr:                       -1 (default)
+connection.dns-over-tls:                -1 (default)
+connection.mptcp-flags:                 0x0 (default)
+connection.wait-device-timeout:         -1
+connection.wait-activation-delay:       -1
+802-3-ethernet.port:                    --
+
+
+kkmic@sma-pi1:~ $ sudo nmcli connection modify '有線接続 1' connection.id eth0
+
+kkmic@sma-pi1:~ $ nmcli connection show eth0
+connection.id:                          eth0
+connection.uuid:                        368715e8-0574-388d-bcee-0f8aa6a487d6
+connection.stable-id:                   --
+connection.type:                        802-3-ethernet
+connection.interface-name:              eth0
+connection.autoconnect:                 はい
+connection.autoconnect-priority:        -999
+connection.autoconnect-retries:         -1 (default)
+connection.multi-connect:               0 (default)
+connection.auth-retries:                -1
+connection.timestamp:                   1715335998
+connection.read-only:                   いいえ
+
+これで、eth0 になった
+
+kkmic@sma-pi1:~ $ nmcli -f ipv4 connection show eth0
+ipv4.method:                            auto
+ipv4.dns:                               --
+ipv4.dns-search:                        --
+ipv4.dns-options:                       --
+ipv4.dns-priority:                      0
+ipv4.addresses:                         --
+ipv4.gateway:                           --
+ipv4.routes:                            --
+ipv4.route-metric:                      -1
+ipv4.route-table:                       0 (unspec)
+
+ipv4.method が auto になっているので、DHCPによる非固定IPアドレスであるので、
+
+sudo nmcli connection modify eth0 ipv4.addresses 192.168.31.36/24
+sudo nmcli connection modify eth0 ipv4.gateway 192.168.31.1
+sudo nmcli connection modify eth0 ipv4.dns 192.168.31.1,8.8.8.8
+sudo nmcli connection modify eth0 ipv4.method manual
+
+これを設定する。
+
+
+kkmic@sma-pi1:~ $ sudo nmcli connection up eth0
+接続が正常にアクティベートされました (D-Bus アクティブパス: /org/freedesktop/NetworkManager/ActiveConnection/3)
+
+これでIPが固定化された。
+この時点からコンソール用のディスプレイ、キーボード、マウスはすべて取り外す。
+LANケーブルが抜けないのは辛い。。。
+
+
+2. RAM化
+
+tmpfs           /tmp            tmpfs   defaults,size=256m,noatime,mode=1777      0       0
+tmpfs           /var/tmp        tmpfs   defaults,size=16m,noatime,mode=1777      0       0
+tmpfs           /var/log        tmpfs   defaults,size=64m,noatime,mode=0755
+
+
+
+
+3. SWAP OFF
+
+sudo swapoff --all
+sudo systemctl stop dphys-swapfile
+sudo systemctl disable dphys-swapfile
+
+
+
+4. NTPの設定
+
+をやろうとしたが、時計は合っていたので実施しない。
+
+
+----------------------------------------------------------
+5.AC1300 WiFi TP-Link Archer T3U Nano
+
+ハードとしては認識OK
+
+dmesg
+[  111.667454] usb 1-1.2: USB disconnect, device number 5
+[  112.591266] usb 1-1.2: new low-speed USB device number 6 using dwc_otg
+[  112.766355] usb 1-1.2: New USB device found, idVendor=04ca, idProduct=005a, bcdDevice= 1.12
+[  112.766407] usb 1-1.2: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  112.766423] usb 1-1.2: Product: USB Multimedia Keyboard
+[  112.766437] usb 1-1.2: Manufacturer: Lite-On Technology Corp.
+[  112.786947] input: Lite-On Technology Corp. USB Multimedia Keyboard as /devices/platform/soc/3f980000.usb/usb1/1-1/1-1.2/1-1.2:1.0/0003:04CA:005A.0004/input/input7
+[  112.853582] hid-generic 0003:04CA:005A.0004: input,hidraw1: USB HID v1.10 Keyboard [Lite-On Technology Corp. USB Multimedia Keyboard] on usb-3f980000.usb-1.2/input0
+[  112.866149] input: Lite-On Technology Corp. USB Multimedia Keyboard Consumer Control as /devices/platform/soc/3f980000.usb/usb1/1-1/1-1.2/1-1.2:1.1/0003:04CA:005A.0005/input/input8
+[  112.931856] input: Lite-On Technology Corp. USB Multimedia Keyboard System Control as /devices/platform/soc/3f980000.usb/usb1/1-1/1-1.2/1-1.2:1.1/0003:04CA:005A.0005/input/input9
+[  112.932458] hid-generic 0003:04CA:005A.0005: input,hidraw2: USB HID v1.10 Device [Lite-On Technology Corp. USB Multimedia Keyboard] on usb-3f980000.usb-1.2/input1
+[  113.241265] usb 1-1.5: new high-speed USB device number 7 using dwc_otg
+[  113.378898] usb 1-1.5: New USB device found, idVendor=2357, idProduct=012e, bcdDevice= 2.10
+[  113.378961] usb 1-1.5: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  113.378982] usb 1-1.5: Product: 802.11ac NIC
+[  113.378998] usb 1-1.5: Manufacturer: Realtek
+[  113.379014] usb 1-1.5: SerialNumber: 123456
+[  113.848614] rtw_8822bu 1-1.5:1.0: Firmware version 27.2.0, H2C version 13
+[  114.440130] usbcore: registered new interface driver rtw_8822bu
+
+
+
+git clone https://github.com/jeremyb31/rtl8822bu
+
+cd rtl8822bu
+vi Makefile
+CONFIG_PLATFORM_ARM_RPI = y
+CONFIG_PLATFORM_I386_PC = n
+
+ドライバインストールは↑　とかはすべて失敗。
+https://qiita.com/Saito5656/items/b8e2b26e74ca0879b296
+ここの方法でうまく言った
+
+
+$ sudo apt install dkms -y
+インストール済み
+
+$ sudo apt install build-essential bc -y
+インストール済み
+
+$ sudo apt update && sudo apt upgrade -y
+ここでエラーが出まくり。なんで？でも無視した
+$ sudo reboot
+
+$ git clone https://github.com/cilynx/rtl88x2bu
+
+$ cd rtl88x2bu/
+$ sudo apt install raspberrypi-kernel-headers -y
+最新がインストール済み
+
+$ sed -i 's/I386_PC = y/I386_PC = n/' Makefile
+$ sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
+ここはもうお馴染み。
+
+$ VER=$(sed -n 's/\PACKAGE_VERSION="\(.*\)"/\1/p' dkms.conf)
+$ sudo rsync -rvhP ./ /usr/src/rtl88x2bu-${VER}
+$ sudo dkms add -m rtl88x2bu -v ${VER}
+$ sudo dkms build -m rtl88x2bu -v ${VER} # Takes ~3-minutes on a 3B+
+$ sudo dkms install -m rtl88x2bu -v ${VER}
+ここの過程がよかったみたい。エラーも出ず。
+
+$ sudo reboot
+
+確認
+$ ifconfig
+wlan0 は表示されない！失敗したか？と思いきや。
+
+$ lsusb
+Bus 001 Device 006: ID 2357:012e TP-Link 802.11ac NIC
+Bus 001 Device 005: ID 04f2:1218 Chicony Electronics Co., Ltd NEC Laser Mouse
+Bus 001 Device 004: ID 04ca:005a Lite-On Technology Corp. USB Multimedia Keyboard
+Bus 001 Device 003: ID 0424:ec00 Microchip Technology, Inc. (formerly SMSC) SMSC9512/9514 Fast Ethernet Adapter
+Bus 001 Device 002: ID 0424:9514 Microchip Technology, Inc. (formerly SMSC) SMC9514 Hub
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+
+一番上でUSBデバイスとして認識OK
+
+kkmic@sma-pi1:~ $ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host noprefixroute 
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether b8:27:eb:f6:cc:e7 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.31.36/24 brd 192.168.31.255 scope global noprefixroute eth0
+       valid_lft forever preferred_lft forever
+    inet6 2400:4050:92c2:110:9943:9360:fcc5:cf58/64 scope global dynamic noprefixroute 
+       valid_lft 14124sec preferred_lft 14124sec
+    inet6 fe80::e866:5dae:ad53:e411/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+3: wlan0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 40:ae:30:cf:89:31 brd ff:ff:ff:ff:ff:ff
+kkmic@sma-pi1:~ $ iw dev
+phy#0
+	Interface wlan0
+		ifindex 3
+		wdev 0x1
+		addr 40:ae:30:cf:89:31
+		type managed
+		txpower 0.00 dBm
+		multicast TXQ:
+			qsz-byt	qsz-pkt	flows	drops	marks	overlmt	hashcol	tx-bytes	tx-packets
+			0	0	0	0	0	0	0	0		0
+
+このように、wlan0 が認識。これはもしや、、有効になっていないだけかも。
+
+コンソールデスクトップで、見てみると
+「Turn On Wireless LAN」が表示されている！これをマウスでONにする。
+WiFiのSSIDがずらっと表示された！
+しかも、kinap08g が勝手につながった！選択していないしKeyも入れていないのに！
+不思議だ。
+192.168.31.152 を取得している！とりあえずはOK。
+
+
+----------------------------------------------------------------------------------------
+wlan0 のIPを 192.168.31.36 にして、eth0 はauto にする（戻す）
+
+まず、eth0 を auto にする
+kkmic@sma-pi1:~ $ cd /etc/NetworkManager/system-connections
+kkmic@sma-pi1:/etc/NetworkManager/system-connections $ sudo cat eth0.nmconnection
+[connection]
+id=eth0
+uuid=368715e8-0574-388d-bcee-0f8aa6a487d6
+type=ethernet
+autoconnect-priority=-999
+interface-name=eth0
+timestamp=1715335998
+
+[ethernet]
+
+[ipv4]
+dns=192.168.31.1;8.8.8.8;
+method=auto
+
+[ipv6]
+addr-gen-mode=default
+method=auto
+
+[proxy]
+
+
+↑[ipv4]からIPアドレスを削除、method=auto
+
+次、wlan0 をIP固定にする
+
+
+kkmic@sma-pi1:/etc/NetworkManager/system-connections $ sudo cat preconfigured.nmconnection
+[connection]
+id=preconfigured
+uuid=8b0dbed6-7a2c-4ad8-85bb-b3649854fedc
+type=wifi
+[wifi]
+mode=infrastructure
+ssid=kinap08-g
+hidden=false
+[ipv4]
+address1=192.168.31.36/24,192.168.31.1
+dns=192.168.31.1,8.8.8.8
+method=manual
+[ipv6]
+addr-gen-mode=default
+method=auto
+[proxy]
+[wifi-security]
+key-mgmt=wpa-psk
+psk=e300d8e0ba8e168e2c40ea1a08ce040c74db82f5f7c29f7e7564f49d104ef716
+
+これで、リブート
+
+すべてOK.LANケーブルはもう使わない！
+
+
+
+
+-----------------------------------------------------------------------------------
+NJ7502L(フォトトランジスタ)からのデータ取得
+
+MCP3002IPと接続後に下記コードを実行
+
+ coding: utf-8
+# このソースコードの動作条件：SPIでMCP3002/3008IP(10bit ADC)およびNJL7502Lを接続
+# 参考：https://qiita.com/Ichiro_Tsuji/items/e77d7d3ec4469ef006ce
+
+
+# 参考：「みんなのRaspberry Pi入門」リックテレコム 石井もルナ・江崎徳秀 著
+
+# spi, time ライブラリをインポート
+import spidev
+import time
+
+# SpiDev オブジェクトのインスタンスを生成
+spi = spidev.SpiDev()
+
+# ポート0、デバイス0のSPI をオープン
+spi.open(0, 0)
+
+# 最大クロックスピードを1MHz に設定
+spi.max_speed_hz=1000000
+
+# 1 ワードあたり8ビットに設定
+spi.bits_per_word=8
+
+# ダミーデータを設定（1111 1111）
+dummy = 0xff
+
+# スタートビットを設定（0100 0111）
+start = 0x47
+
+# シングルエンドモードを設定 （0010 0000）
+sgl = 0x20
+
+# ch0 を選択（0000 0000）
+ch0 = 0x00
+# ch1 を選択（0001 0000）
+ch1 = 0x10
+
+# MSB ファーストモードを選択（0000 1000）
+msbf = 0x08
+
+# IC からデータを取得する関数を定義
+def measure(ch):
+    # SPI インターフェイスでデータの送受信を行う
+    ad = spi.xfer2( [ (start + sgl + ch + msbf), dummy ] )
+    #
+    val = ((ad[0] & 0x03) << 8) + ad[1]
+    # 受信した2バイトのデータを10 ビットデータにまとめる
+    voltage =  ( val * 3.3 ) / 1023
+    # 結果を返す
+    return val, voltage
+
+# 例外を検出
+try:
+    # 無限ループ
+    while 1:
+        # 関数を呼び出してch0 のデータを取得
+        ch0_val, ch0_voltage  = measure(ch0)
+        # 関数を呼び出してch1 のデータを取得
+        ch1_val, ch1_voltage  = measure(ch1)
+        # 結果を表示
+        print('ch0 = {:4d}, {:2.2f}[V], ch1 = {:4d}, {:2.2f}[V]'.format(ch0_val, ch0_voltage, ch1_val, ch1_voltage))
+        # 0.5 秒待つ
+        time.sleep(0.5)
+
+# キーボード例外を検出
+except KeyboardInterrupt:
+    # 何も処理をしない
+    pass
+
+# SPI を開放
+spi.close()
+---
+
+ここまで。数値が得られることを確認
+
+
+-----------------------------------------------------------------------------
+GPIO5 Tr 2SC1815 を接続し、出力を制御
+
+
+test2.py
+
+from gpiozero import LED                                                                                        
+import time
+
+light_blub = LED(5)
+light_blub.on()
+time.sleep(10)
+
+light_blub.off()
+
+--
+このコードで、GPIO5がONになっていることを確認。テスターで3.3V出力を確認した
+
+
+
+
+                                                                                              71,1         末尾
+
+
+----------------------------------------------------------------------------
+実は、このあと、WiFiをセットアップ。そしたら、
+１.gpiozero でエラーが出るようになった　　＞　結局直せなかった
+
+２。MCP3002からデータ取得できなくなった　＞　結局直せなかった
+
+
+１は、pigpio を使うことで回避
+２は、spidev をやめて、pigpio.spi を使うことで回避。
+
+その結果で、次のコード。
+
+--
+#!/usr/bin/env python
+# coding: utf-8
+
+# @author KKMIC.
+# @version 1.0.0
+# 2024/05/11 Sat
+
+# *** センサーライトプログラム ***
+# 暗い部屋で卓上ライトだけで作業後、卓上ライトを消灯してから部屋を出るまでの間に豆電球を自動点灯・自動消灯する
+import time
+import pigpio
+#from gpiozero import LED as light
+import logging
+
+threshold = 10
+sabun = 8
+lighting_time = 30 * 2
+
+
+pi = pigpio.pi()
+sensor = pi.spi_open(0, 1000000, 0)
+pi.set_mode(5, pigpio.OUTPUT)
+
+# logging setup -----------------------------------
+logger = logging.getLogger('jiritsu_log')
+
+### ログレベル定義1/2 (INFO, WARNING, ERROR, DEBUG):logger
+# logger に渡すログのレベル
+logger.setLevel(logging.DEBUG)
+format = '%(asctime)s:%(levelname)-9s :%(message)s'
+
+# 動作ログ書き込みディレクトリの取得
+#_log_dir = StaticDefine.aplog_path
+_log_dir = '/home/kkmic/hikari'
+
+# ファイルパスの生成
+_filepath = _log_dir + '/' + 'sensor_light.log'
+fl_handler = logging.FileHandler(filename=_filepath, encoding="utf-8")
+
+### ログレベル定義2/2 (INFO, WARNING, ERROR, DEBUG):handler
+# log handler に渡すログのレベル
+# 出力するログのレベルを変更する場合は次の行を修正すること
+fl_handler.setLevel(logging.INFO)
+#fl_handler.setLevel(logging.DEBUG)
+
+fl_handler.setFormatter(logging.Formatter(format))
+logger.addHandler(fl_handler)
+# logging setup -----------------------------------
+
+
+# A/Dコンバータからデータを取得する関数を定義
+def measure(ch):
+    # SPI インターフェイスでデータの送受信を行う
+    c, ad = pi.spi_xfer( sensor, [ 0x68 | ch, 0x00 ] )
+    #ad = spi.xfer2( [ (start + sgl + ch + msbf), dummy ] )
+    #
+    val = ((ad[0] & 0x03) << 8) + ad[1]
+    # 受信した2バイトのデータを10 ビットデータにまとめる
+    voltage =  ( val * 3.3 ) / 1023
+    # 結果を返す
+    return val, voltage
+
+try:
+    ch1_val_3 = 0
+    ch1_val_2 = 0
+    ch1_val_1 = 0
+    light_status = False
+    counter = 0
+
+    while True:
+        # 関数を呼び出してch1 のデータを取得
+        ch1_val, ch1_voltage  = measure(0x10)
+        print('ch1 = {:4d}, {:2.2f}[V]'.format(ch1_val, ch1_voltage))
+
+        # 3回前の値を使用するため変数処理
+        ch1_val_3 = ch1_val_2
+        ch1_val_2 = ch1_val_1
+        ch1_val_1 = ch1_val
+
+        # 現在の明るさと3回前の明るさを比較する
+        # ライト点灯の条件：１　規定以上の明るさの差分を検知、２　現在点灯していない、３　明るさが規定以下（暗い
+とき）
+        if ch1_val_3 - ch1_val > sabun and light_status == False and ch1_val < threshold:
+            light_status = True
+            pi.write(5, 1)
+            #light_blub.on()
+            print('BLUB is light')
+            logger.debug('BLUB is light')
+
+        # すでに点灯している場合
+        elif light_status == True:
+            # カウントを加算
+            counter = counter + 1
+            # もしカウンターが lighting_time になったらライト消灯しカウンターをクリアする
+            if counter == lighting_time:
+                light_status = False
+                pi.write(5, 0)
+                print('BLUB is off')
+                #light_blub.off()
+                counter = 0
+
+        time.sleep(0.5)
+        print(light_status)
+
+except KeyboardInterrupt:
+    pass
+
+pi.spi_close(sensor)
+pi.stop()
+-------------
+
+pigpio を使うので、pigpiod を起動。
+$ sudo pigpiod
+
+$ python sensor_light.py
+ch1 =   45, 0.15[V]
+False
+ch1 =   46, 0.15[V]
+False
+ch1 =   45, 0.15[V]
+False
+ch1 =    4, 0.01[V]
+BLUB is light
+True
+ch1 =    8, 0.03[V]
+True
+ch1 =   35, 0.11[V]
+True
+ch1 =   36, 0.12[V]
+True
+ch1 =   36, 0.12[V]
+BLUB is off
+False
+ch1 =   35, 0.11[V]
+False
+ch1 =   35, 0.11[V]
+-------------------------
+
+pigpiod の自動起動
+
+
+
